@@ -5,22 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>GeoOtziv</title>
-    <link rel="stylesheet" href="style/index.css">
-    <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript">
-    </script>
+    <link rel="stylesheet" href="index.css">
+    <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.10/handlebars.js"></script>
 </head>
 <body>
     <div class="Wrapper">
         <div class="InfoWindow">
             <div class="Header">
                 <div class="Marker">
-                    <img src="image/marker_small.png" alt="marker" class="Marker__Small">
+                    <img src="src/image/marker_small.png" alt="marker" class="Marker__Small">
                     <p class="Marker__Address">
                         Невский пр., 78, Санкт-Петербург, 191025
                     </p>
                 </div>
                 <div class="Close">
-                    <img src="image/close.png" alt="close" class="Close__Icon">
+                    <img src="src/image/close.png" alt="close" class="Close__Icon">
                 </div>
             </div>
             <div class="Body">
@@ -85,7 +85,7 @@
 
             var myPlacemark = new ymaps.Placemark([55.760458, 37.663541], {}, {
                 iconLayout: 'default#image',
-                iconImageHref: 'image/marker_grey.png'
+                iconImageHref: 'src/image/marker_grey.png'
             });
 
             myMap.geoObjects.add(myPlacemark);
@@ -93,7 +93,7 @@
             myPlacemark.events.add('click', function (e) {
                 var placemark = e.get('target'); // метка по которой кликнули
                 placemark.options.set({
-                    iconImageHref: 'image/marker_orange.png'
+                    iconImageHref: 'src/image/marker_orange.png'
                 });
             });
         }
