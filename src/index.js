@@ -85,9 +85,12 @@ function onMapClick(e) {
  * Открыть форму для просмотра/оздания отзыва.
  */
 function openForm({coords, clientX, clientY}) {
+    console.log('clientY =', clientY);
+    console.log('clientY + 530 =', clientY + 530);
+    console.log('window.innerHeight =', window.innerHeight);
     const myGeocoder = ymaps.geocode(coords),
-        left = ( clientX + 380 > window.innerWidth ? clientX - 380 : clientX),
-        top = (clientY + 530 > window.innerHeight ? 10 : clientY);
+        left = (clientX + 380 >= window.innerWidth ? clientX - 380 : clientX),
+        top = (clientY + 530 >= window.innerHeight ? 10 : clientY - 15);
 
     return myGeocoder.then(res => {
             const address = res.geoObjects.get(0).getAddressLine(),
