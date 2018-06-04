@@ -1,5 +1,5 @@
-import {reviewTpl, reviewFormTpl} from './template.js';
 import store from './store.js';
+import {openForm, addComment, closeForm, addNewMarker} from './form.js';
 
 document.addEventListener("DOMContentLoaded", ready);
 
@@ -65,7 +65,7 @@ function initMap() {
 
     myMap.events.add('click', onMapClick);
 
-    flags.myClusterer.balloon.events.add('open', closeForm);
+    flags.myClusterer.balloon.events.add('open', () => closeForm(flags));
 }
 
 /**
@@ -77,40 +77,10 @@ function onMapClick(e) {
         const coords = e.get('coords'),
             clientX = e.get('domEvent').get('clientX'),
             clientY = e.get('domEvent').get('clientY');
-        openForm({coords, clientX, clientY}).catch(errorHandler);
+        openForm({coords, clientX, clientY, flags}).catch(errorHandler);
     }
     flags.myClusterer.balloon.close(flags.myClusterer.getClusters()[0]);
-    closeForm();
-}
-
-/**
- * Открыть форму для просмотра/оздания отзыва.
- */
-function openForm({coords, clientX, clientY}) {
-    const myGeocoder = ymaps.geocode(coords),
-        left = (clientX + 380 >= window.innerWidth ? clientX - 380 : clientX),
-        top = (clientY + 530 >= window.innerHeight ? 10 : clientY - 15);
-
-    return myGeocoder.then(res => {
-            const address = res.geoObjects.get(0).getAddressLine(),
-                render = Handlebars.compile(reviewFormTpl),
-                html = render({address: address}),
-                wrapper = document.querySelector('.Wrapper'),
-                infoWindow = document.createElement('div');
-            
-            infoWindow.className = 'InfoWindow';
-            infoWindow.innerHTML = html;
-            infoWindow.dataset.coords = JSON.stringify(coords);
-            infoWindow.dataset.address = address;
-
-            infoWindow.style.left = `${left}px`;
-            infoWindow.style.top = `${top}px`;
-            wrapper.appendChild(infoWindow);
-            flags.isInfoWindowOpened = infoWindow;
-
-            return address;
-        }
-    );
+    closeForm(flags);
 }
 
 /**
@@ -119,11 +89,11 @@ function openForm({coords, clientX, clientY}) {
  */
 function onWrapperClick(e) {
     if (e.target.className === 'Close__Icon') {
-        closeForm();
+        closeForm(flags);
     }
 
     if (e.target.className === 'AddReview') {
-        addNewMarker();
+        addNewMarker({flags, onSinglMarkerClick});
     }
     
     if (e.target.className === 'BalloonCarousel-Address-Click') {
@@ -132,106 +102,14 @@ function onWrapperClick(e) {
             clientX = e.clientX,
             clientY = e.clientY;
 
-        openForm({coords, clientX, clientY}).then(address => {
+        openForm({coords, clientX, clientY, flags}).then(address => {
             const data = store.getDataByKey(address);
 
             data.forEach(item => {
-                addComment(item);
+                addComment(item, flags);
             });
         }).catch(errorHandler);
         flags.myClusterer.balloon.close(flags.myClusterer.getClusters()[0]);
-    }
-}
-
-/**
- * Закрыть форму.
- */
-function closeForm() {
-    if (flags.isInfoWindowOpened) {
-        flags.isInfoWindowOpened.remove();
-        flags.isInfoWindowOpened = null;
-        if (flags.activeSinglMark) {
-            flags.activeSinglMark.options.set({
-                iconImageHref: 'src/image/marker_grey.png'
-            });
-            flags.activeSinglMark = null;
-        }
-    }
-}
-
-/**
- * Добавить новый маркер.
- */
-function addNewMarker() {
-    const form = document.forms.ReviewForm,
-        name = form.name.value,
-        place = form.place.value,
-        review = form.review.value;
-
-    if (name.length === 0 || place.length === 0 || review.length === 0) {
-        alert('Заполните все поля');
-    } else {
-        const key = JSON.parse(flags.isInfoWindowOpened.dataset.coords),
-            address = flags.isInfoWindowOpened.dataset.address,
-            dateNow = new Date().toLocaleString(),
-            data = {name: name, place: place, review: review, date: dateNow, coords: key},
-            myPlacemark = new ymaps.Placemark(key, {
-                balloonContentHeader: place,
-                balloonContentBody: `<a href="#" class="BalloonCarousel-Address-Click" data-key=${JSON.stringify(key)}>${address}</a>`,
-                balloonContentReview: review,
-                balloonContentFooter: dateNow
-            }, {
-                iconLayout: 'default#image',
-                iconImageHref: 'src/image/marker_orange.png',
-                hideIconOnBalloonOpen: false
-            });
-        
-        myPlacemark.markerCoords = key; // Добавить ключ-координату на маркер.
-        
-        myPlacemark.events.add('click', onSinglMarkerClick);
-
-        flags.myClusterer.add(myPlacemark);
-
-        flags.activeSinglMark = myPlacemark;  // Метка становится активной после появления на карте, чтобы нельзя было кликать по другим.
-
-        if (store.hasKey(address)) {
-            store.appendDataInKey(address, data);
-        } else {
-            store.createKey(address);
-            store.appendDataInKey(address, data);
-        }
-        if (store.hasKey(key)) {
-            store.appendDataInKey(key, data);
-        } else {
-            store.createKey(key);
-            store.appendDataInKey(key, data);
-        }
-        form.name.value = '';
-        form.place.value = '';
-        form.review.value = '';
-
-        addComment(data);
-    }
-}
-
-/**
- * Добавить комментарий в форму.
- * @param {*} data 
- */
-function addComment(data) {
-    const reviewList = flags.isInfoWindowOpened.querySelector('.ReviewList'),
-        render = Handlebars.compile(reviewTpl),
-        reviewLi = document.createElement('li'),
-        html = render(data);
-    
-    reviewLi.className = 'Review';
-    reviewLi.innerHTML = html;
-    
-    if (reviewList.children.length === 0) {
-        reviewList.innerHTML = '';
-        reviewList.appendChild(reviewLi);
-    } else {
-        reviewList.appendChild(reviewLi);
     }
 }
 
@@ -255,11 +133,11 @@ function onSinglMarkerClick(e) {
             clientX = e.get('domEvent').get('clientX'),
             clientY = e.get('domEvent').get('clientY');
 
-        openForm({coords, clientX, clientY}).then((address) => {
+        openForm({coords, clientX, clientY, flags}).then((address) => {
             const data = store.getDataByKey(coords);
 
             data.forEach(item => {
-                addComment(item);
+                addComment(item, flags);
             });
         }).catch(errorHandler);
     }
