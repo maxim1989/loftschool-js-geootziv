@@ -4,9 +4,11 @@ import store from './store.js';
 document.addEventListener("DOMContentLoaded", ready);
 
 let myMap = null,
-    isInfoWindowOpened = null, // object, если был клик по карте и открылась форма.
-    myClusterer = null,
-    activeSinglMark = null; // object, если был клик по маркеру с одним отзывом и открылась форма.
+    flags = {
+        myClusterer: null,
+        activeSinglMark: null, // object, если был клик по маркеру с одним отзывом и открылась форма.
+        isInfoWindowOpened: null // object, если был клик по карте и открылась форма.
+    }; 
 
 /**
  * Загрузка страницы.
@@ -36,7 +38,7 @@ function initMap() {
         '<div class=ballon_footer>{{ properties.balloonContentFooter|raw }}</div>'
     );
 
-    myClusterer = new ymaps.Clusterer({
+    flags.myClusterer = new ymaps.Clusterer({
         clusterDisableClickZoom: true,
         clusterOpenBalloonOnClick: true,
         // Устанавливаем стандартный макет балуна кластера "Карусель".
@@ -59,11 +61,11 @@ function initMap() {
         // Можно отключить отображение меню навигации.
         // clusterBalloonPagerVisible: false
     });
-    myMap.geoObjects.add(myClusterer);
+    myMap.geoObjects.add(flags.myClusterer);
 
     myMap.events.add('click', onMapClick);
 
-    myClusterer.balloon.events.add('open', closeForm);
+    flags.myClusterer.balloon.events.add('open', closeForm);
 }
 
 /**
@@ -71,13 +73,13 @@ function initMap() {
  * @param {*} e 
  */
 function onMapClick(e) {
-    if (!isInfoWindowOpened) {  // Если нет открытых форм.
+    if (!flags.isInfoWindowOpened) {  // Если нет открытых форм.
         const coords = e.get('coords'),
             clientX = e.get('domEvent').get('clientX'),
             clientY = e.get('domEvent').get('clientY');
         openForm({coords, clientX, clientY}).catch(errorHandler);
     }
-    myClusterer.balloon.close(myClusterer.getClusters()[0]);
+    flags.myClusterer.balloon.close(flags.myClusterer.getClusters()[0]);
     closeForm();
 }
 
@@ -85,9 +87,6 @@ function onMapClick(e) {
  * Открыть форму для просмотра/оздания отзыва.
  */
 function openForm({coords, clientX, clientY}) {
-    console.log('clientY =', clientY);
-    console.log('clientY + 530 =', clientY + 530);
-    console.log('window.innerHeight =', window.innerHeight);
     const myGeocoder = ymaps.geocode(coords),
         left = (clientX + 380 >= window.innerWidth ? clientX - 380 : clientX),
         top = (clientY + 530 >= window.innerHeight ? 10 : clientY - 15);
@@ -107,7 +106,7 @@ function openForm({coords, clientX, clientY}) {
             infoWindow.style.left = `${left}px`;
             infoWindow.style.top = `${top}px`;
             wrapper.appendChild(infoWindow);
-            isInfoWindowOpened = infoWindow;
+            flags.isInfoWindowOpened = infoWindow;
 
             return address;
         }
@@ -140,7 +139,7 @@ function onWrapperClick(e) {
                 addComment(item);
             });
         }).catch(errorHandler);
-        myClusterer.balloon.close(myClusterer.getClusters()[0]);
+        flags.myClusterer.balloon.close(flags.myClusterer.getClusters()[0]);
     }
 }
 
@@ -148,14 +147,14 @@ function onWrapperClick(e) {
  * Закрыть форму.
  */
 function closeForm() {
-    if (isInfoWindowOpened) {
-        isInfoWindowOpened.remove();
-        isInfoWindowOpened = null;
-        if (activeSinglMark) {
-            activeSinglMark.options.set({
+    if (flags.isInfoWindowOpened) {
+        flags.isInfoWindowOpened.remove();
+        flags.isInfoWindowOpened = null;
+        if (flags.activeSinglMark) {
+            flags.activeSinglMark.options.set({
                 iconImageHref: 'src/image/marker_grey.png'
             });
-            activeSinglMark = null;
+            flags.activeSinglMark = null;
         }
     }
 }
@@ -172,8 +171,8 @@ function addNewMarker() {
     if (name.length === 0 || place.length === 0 || review.length === 0) {
         alert('Заполните все поля');
     } else {
-        const key = JSON.parse(isInfoWindowOpened.dataset.coords),
-            address = isInfoWindowOpened.dataset.address,
+        const key = JSON.parse(flags.isInfoWindowOpened.dataset.coords),
+            address = flags.isInfoWindowOpened.dataset.address,
             dateNow = new Date().toLocaleString(),
             data = {name: name, place: place, review: review, date: dateNow, coords: key},
             myPlacemark = new ymaps.Placemark(key, {
@@ -191,9 +190,9 @@ function addNewMarker() {
         
         myPlacemark.events.add('click', onSinglMarkerClick);
 
-        myClusterer.add(myPlacemark);
+        flags.myClusterer.add(myPlacemark);
 
-        activeSinglMark = myPlacemark;  // Метка становится активной после появления на карте, чтобы нельзя было кликать по другим.
+        flags.activeSinglMark = myPlacemark;  // Метка становится активной после появления на карте, чтобы нельзя было кликать по другим.
 
         if (store.hasKey(address)) {
             store.appendDataInKey(address, data);
@@ -220,7 +219,7 @@ function addNewMarker() {
  * @param {*} data 
  */
 function addComment(data) {
-    const reviewList = isInfoWindowOpened.querySelector('.ReviewList'),
+    const reviewList = flags.isInfoWindowOpened.querySelector('.ReviewList'),
         render = Handlebars.compile(reviewTpl),
         reviewLi = document.createElement('li'),
         html = render(data);
@@ -242,11 +241,11 @@ function addComment(data) {
  */
 function onSinglMarkerClick(e) {
     e.preventDefault();
-    if (!activeSinglMark && !isInfoWindowOpened) {
-        myClusterer.balloon.close(myClusterer.getClusters()[0]);
+    if (!flags.activeSinglMark && !flags.isInfoWindowOpened) {
+        flags.myClusterer.balloon.close(flags.myClusterer.getClusters()[0]);
         const placemark = e.get('target');
 
-        activeSinglMark = placemark;
+        flags.activeSinglMark = placemark;
 
         placemark.options.set({
             iconImageHref: 'src/image/marker_orange.png'
