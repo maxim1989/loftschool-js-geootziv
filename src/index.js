@@ -137,6 +137,7 @@ function onWrapperClick(e) {
                 addComment(item);
             });
         }).catch(errorHandler);
+        myClusterer.balloon.close(myClusterer.getClusters()[0]);
     }
 }
 
@@ -171,7 +172,7 @@ function addNewMarker() {
         const key = JSON.parse(isInfoWindowOpened.dataset.coords),
             address = isInfoWindowOpened.dataset.address,
             dateNow = new Date().toLocaleString(),
-            data = {name: name, place: place, review: review, date: dateNow},
+            data = {name: name, place: place, review: review, date: dateNow, coords: key},
             myPlacemark = new ymaps.Placemark(key, {
                 balloonContentHeader: place,
                 balloonContentBody: `<a href="#" class="BalloonCarousel-Address-Click" data-key=${JSON.stringify(key)}>${address}</a>`,
@@ -196,6 +197,12 @@ function addNewMarker() {
         } else {
             store.createKey(address);
             store.appendDataInKey(address, data);
+        }
+        if (store.hasKey(key)) {
+            store.appendDataInKey(key, data);
+        } else {
+            store.createKey(key);
+            store.appendDataInKey(key, data);
         }
         form.name.value = '';
         form.place.value = '';
@@ -247,7 +254,7 @@ function onSinglMarkerClick(e) {
             clientY = e.get('domEvent').get('clientY');
 
         openForm({coords, clientX, clientY}).then((address) => {
-            const data = store.getDataByKey(address);
+            const data = store.getDataByKey(coords);
 
             data.forEach(item => {
                 addComment(item);
